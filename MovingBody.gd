@@ -1,8 +1,6 @@
-extends KinematicBody
+xtends KinematicBody
 
-# Affects movement speed
-const SPEED = 200
-
+# Camera Control Variables
 # Affects camera angle (when mouse is moved vertically)
 const CAMERA_X_ROT_MIN = 0
 const CAMERA_X_ROT_MAX = 30
@@ -12,50 +10,83 @@ var sensitivity = 0.01
 
 # Internal variables
 var camera_x_rot = 0.0
-var orientation
+
+# Movement Variables
+var speed = 15
+var jumpforce = 3
+var forward
+var back
+var left
+var right
+var jump
+
+# Movement Constants
+const gravity = -9.8
+
 
 func _ready():
-	# Captur mouse within game
+	# Capture mouse within game
 	Input.set_mouse_mode(2)
 	set_process_input(true)
-	orientation = $"..".global_transform
-	orientation.origin = Vector3()
-	
+
+
 func _input(event):
 	if event is InputEventMouseMotion:
+		# Left and right camera movement
 		$CameraBase.rotate_y(-event.relative.x * sensitivity)
 		$CameraBase.orthonormalize()
+
+		# Up and down camera movement
 		camera_x_rot = clamp(
 			camera_x_rot - event.relative.y * sensitivity,
 			deg2rad(CAMERA_X_ROT_MIN),
 			deg2rad(CAMERA_X_ROT_MAX))
 		$CameraBase/CameraRotation.rotation.x =  camera_x_rot
 
-func _physics_process(delta):
-	var direction = Vector3()
-	var move_vector = Vector2()
-	if Input.is_action_pressed("move_up"):
-		move_vector.y +=1
-	if Input.is_action_pressed("move_down"):
-		move_vector.y -=1
-	if Input.is_action_pressed("move_left"):
-		move_vector.x -=1
-	if Input.is_action_pressed("move_right"):
-		move_vector.x +=1
-	
-	var cam_z = -$CameraBase/CameraRotation/Camera.global_transform.basis.z
-	var cam_x = $CameraBase/CameraRotation/Camera.global_transform.basis.x
-	
-	cam_z.y = 0
-	cam_z = cam_z.normalized()
-	cam_x.y = 0
-	cam_x = cam_x.normalized()
 
-	move_vector = move_vector.normalized()
-	direction += cam_z * move_vector.y
-	direction += cam_x * move_vector.x
-	direction.y = 0
-	direction = direction.normalized()
-	var velocity = Vector3()
-	velocity = velocity.linear_interpolate(direction * SPEED, 16 * delta)
-	move_and_slide(velocity, Vector3(0,1,0))
+func _physics_process(delta):
+	
+	var motion = Vector3()
+	
+	forward = Input.is_key_pressed(KEY_UP) || Input.is_key_pressed(KEY_W)
+	
+	back = Input.is_key_pressed(KEY_DOWN) || Input.is_key_pressed(KEY_S)
+	
+	left = Input.is_key_pressed(KEY_LEFT) || Input.is_key_pressed(KEY_A)
+	
+	right= Input.is_key_pressed(KEY_RIGHT) || Input.is_key_pressed(KEY_D)
+	
+	jump = Input.is_key_pressed(KEY_SPACE)
+	
+	if jump and on_floor():
+		self.move_and_slide(Vector3(0,100,0))
+		
+	# Move forwards
+	if forward:
+		print("going forwards")
+		motion.x = speed
+		
+	# Move left
+	if left:
+		print("going left")
+		motion.z = -speed
+	
+	# Move right
+	if right:
+		print("going right")
+		motion.z = speed
+		
+	# Move backwards
+	if back:
+		print("going back")
+		motion.x = -speed
+		
+	# Gravity
+	if !on_floor():
+		motion.y += gravity + delta
+	
+	self.move_and_slide(motion)
+
+func on_floor():
+	return self.test_move(self.transform, Vector3(0,-1,0))
+	print("On floor")
